@@ -32,6 +32,7 @@ import ParticipantItem from './ParticipantItem';
 import ParticipantQuickAction from './ParticipantQuickAction';
 
 interface IProps {
+    onlyEnabled?: boolean;
 
     /**
      * Media state for audio.
@@ -181,6 +182,7 @@ function MeetingParticipantItem({
     _quickActionButtonType,
     _raisedHand,
     _videoMediaState,
+    onlyEnabled,
     isHighlighted,
     isInBreakoutRoom,
     onContextMenu,
@@ -226,6 +228,10 @@ function MeetingParticipantItem({
 
     const audioMediaState = _audioMediaState === MEDIA_STATE.UNMUTED && hasAudioLevels
         ? MEDIA_STATE.DOMINANT_SPEAKER : _audioMediaState;
+
+    if (onlyEnabled && audioMediaState === MEDIA_STATE.MUTED) {
+        return null
+    }
 
     return (
         <ParticipantItem

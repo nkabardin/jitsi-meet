@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { connect, useSelector } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
@@ -13,6 +13,7 @@ import { getBreakoutRooms, getCurrentRoomId, isInBreakoutRoom } from '../../../b
 import { isButtonEnabled, showOverflowDrawer } from '../../../toolbox/functions.web';
 import { iAmVisitor } from '../../../visitors/functions';
 import { getSortedParticipantIds, isCurrentRoomRenamable, shouldRenderInviteButton } from '../../functions';
+import Checkbox from '../../../base/ui/components/web/Checkbox';
 import { useParticipantDrawer } from '../../hooks';
 import RenameButton from '../breakout-rooms/components/web/RenameButton';
 
@@ -96,6 +97,8 @@ function MeetingParticipants({
 
     const { classes: styles } = useStyles();
 
+    const [ onlyEnabled, setOnlyEnabled ] = useState(false);
+
     return (
         <>
             <span
@@ -123,8 +126,15 @@ function MeetingParticipants({
                 onChange = { setSearchString }
                 placeholder = { t('participantsPane.search') }
                 value = { searchString } />
+            <div style = {{ marginBottom: 12 }}>
+                <Checkbox
+                    checked = { onlyEnabled }
+                    label = 'только включенные'
+                    onChange = { e => setOnlyEnabled(e.target.checked) } />
+            </div>
             <div>
                 <MeetingParticipantItems
+                    onlyEnabled = { onlyEnabled }
                     isInBreakoutRoom = { isBreakoutRoom }
                     lowerMenu = { lowerMenu }
                     openDrawerForParticipant = { openDrawerForParticipant }

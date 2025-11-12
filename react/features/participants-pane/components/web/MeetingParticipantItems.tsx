@@ -4,6 +4,8 @@ import MeetingParticipantItem from './MeetingParticipantItem';
 
 interface IProps {
 
+    onlyEnabled?: boolean;
+
     /**
      * The translated ask unmute text for the quick action buttons.
      */
@@ -71,6 +73,7 @@ interface IProps {
  * @returns {ReactNode}
  */
 function MeetingParticipantItems({
+    onlyEnabled,
     isInBreakoutRoom,
     lowerMenu,
     toggleMenu,
@@ -84,6 +87,7 @@ function MeetingParticipantItems({
 }: IProps) {
     const renderParticipant = (id: string) => (
         <MeetingParticipantItem
+            onlyEnabled = { onlyEnabled }
             isHighlighted = { raiseContextId === id }
             isInBreakoutRoom = { isInBreakoutRoom }
             key = { id }
