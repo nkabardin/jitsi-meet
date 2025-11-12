@@ -1,0 +1,334 @@
+---
+# Ansible Playbook for Deploying Custom Jitsi Meet Build
+# 
+# Usage:
+#   ansible-playbook -i inventory ansible-deploy.yml
+#
+# Variables (set in inventory or --extra-vars):
+#   jitsi_source_dir: /path/to/jitsi-meet (default: current directory)
+#   jitsi_deploy_path: /usr/share/jitsi-meet (default)
+#   backup_enabled: true (default)
+#   nginx_reload: true (default)
+
+- name: Deploy Custom Jitsi Meet Build
+  hosts: jitsi_servers
+  become: yes
+  vars:
+    jitsi_deploy_path: /usr/share/jitsi-meet
+    jitsi_source_dir: "{{ playbook_dir }}"
+    backup_enabled: true
+    nginx_reload: true
+    
+  tasks:
+    - name: Verify source directory exists
+      stat:
+        path: "{{ jitsi_source_dir }}"
+      register: source_dir_stat
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Fail if source directory doesn't exist
+      fail:
+        msg: "Source directory {{ jitsi_source_dir }} does not exist"
+      when: not source_dir_stat.stat.exists
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Check if libs directory exists (build verification)
+      stat:
+        path: "{{ jitsi_source_dir }}/libs"
+      register: libs_dir_stat
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Check if app.bundle.min.js exists (build verification)
+      stat:
+        path: "{{ jitsi_source_dir }}/libs/app.bundle.min.js"
+      register: app_bundle_stat
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Fail if build not found
+      fail:
+        msg: "Build not found. Please run 'make all' (or 'make' followed by 'make deploy') in {{ jitsi_source_dir }} first"
+      when: not libs_dir_stat.stat.exists or not app_bundle_stat.stat.exists
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Ensure deployment directory exists
+      file:
+        path: "{{ jitsi_deploy_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+    
+    - name: Ensure CSS directory exists
+      file:
+        path: "{{ jitsi_deploy_path }}/css"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+    
+    - name: Backup current installation
+      archive:
+        path: "{{ jitsi_deploy_path }}"
+        dest: "/tmp/jitsi-meet-backup-{{ ansible_date_time.epoch }}.tar.gz"
+        format: gz
+      when: backup_enabled
+      register: backup_result
+      changed_when: false
+    
+    - name: Display backup location
+      debug:
+        msg: "Backup created at {{ backup_result.dest }}"
+      when: backup_enabled and backup_result is succeeded
+    
+    # Deploy HTML files
+    - name: Find HTML files
+      find:
+        paths: "{{ jitsi_source_dir }}"
+        patterns: "*.html"
+        file_type: file
+      register: html_files
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Copy HTML files
+      copy:
+        src: "{{ item.path }}"
+        dest: "{{ jitsi_deploy_path }}/{{ item.path | basename }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop: "{{ html_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: html_files.files | length > 0
+    
+    # Deploy JavaScript files (root level)
+    - name: Find root JS files
+      find:
+        paths: "{{ jitsi_source_dir }}"
+        patterns: "*.js"
+        file_type: file
+        depth: 1
+      register: js_files
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Copy root JavaScript files
+      copy:
+        src: "{{ item.path }}"
+        dest: "{{ jitsi_deploy_path }}/{{ item.path | basename }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop: "{{ js_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: js_files.files | length > 0
+    
+    # Deploy libs directory (built bundles)
+    - name: Create libs tarball
+      archive:
+        path: "{{ jitsi_source_dir }}/libs"
+        dest: "/tmp/jitsi-libs-{{ ansible_date_time.epoch }}.tar.gz"
+        format: gz
+      delegate_to: localhost
+      become: no
+      run_once: true
+      register: libs_tarball
+    
+    - name: Upload libs tarball
+      copy:
+        src: "{{ libs_tarball.dest }}"
+        dest: "/tmp/jitsi-libs.tar.gz"
+        mode: '0644'
+    
+    - name: Remove old libs directory
+      file:
+        path: "{{ jitsi_deploy_path }}/libs"
+        state: absent
+    
+    - name: Extract libs tarball
+      unarchive:
+        src: /tmp/jitsi-libs.tar.gz
+        dest: "{{ jitsi_deploy_path }}"
+        remote_src: yes
+        owner: root
+        group: root
+    
+    - name: Remove uploaded tarball
+      file:
+        path: /tmp/jitsi-libs.tar.gz
+        state: absent
+    
+    - name: Remove local tarball
+      file:
+        path: "{{ libs_tarball.dest }}"
+        state: absent
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    # Deploy CSS
+    - name: Deploy CSS file
+      copy:
+        src: "{{ jitsi_source_dir }}/css/all.css"
+        dest: "{{ jitsi_deploy_path }}/css/all.css"
+        owner: root
+        group: root
+        mode: '0644'
+    
+    # Deploy static directories
+    - name: Check static directory exists
+      stat:
+        path: "{{ jitsi_source_dir }}/static"
+      register: static_dir_stat
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Remove old static directory
+      file:
+        path: "{{ jitsi_deploy_path }}/static"
+        state: absent
+      when: static_dir_stat.stat.exists
+    
+    - name: Deploy static directory
+      copy:
+        src: "{{ jitsi_source_dir }}/static/"
+        dest: "{{ jitsi_deploy_path }}/static/"
+        owner: root
+        group: root
+        remote_src: false
+      when: static_dir_stat.stat.exists
+    
+    - name: Remove old sounds directory
+      file:
+        path: "{{ jitsi_deploy_path }}/sounds"
+        state: absent
+    
+    - name: Deploy sounds directory
+      copy:
+        src: "{{ jitsi_source_dir }}/sounds/"
+        dest: "{{ jitsi_deploy_path }}/sounds/"
+        owner: root
+        group: root
+        remote_src: false
+    
+    - name: Remove old fonts directory
+      file:
+        path: "{{ jitsi_deploy_path }}/fonts"
+        state: absent
+    
+    - name: Deploy fonts directory
+      copy:
+        src: "{{ jitsi_source_dir }}/fonts/"
+        dest: "{{ jitsi_deploy_path }}/fonts/"
+        owner: root
+        group: root
+        remote_src: false
+    
+    - name: Remove old images directory
+      file:
+        path: "{{ jitsi_deploy_path }}/images"
+        state: absent
+    
+    - name: Deploy images directory
+      copy:
+        src: "{{ jitsi_source_dir }}/images/"
+        dest: "{{ jitsi_deploy_path }}/images/"
+        owner: root
+        group: root
+        remote_src: false
+    
+    - name: Remove old lang directory
+      file:
+        path: "{{ jitsi_deploy_path }}/lang"
+        state: absent
+    
+    - name: Deploy lang directory
+      copy:
+        src: "{{ jitsi_source_dir }}/lang/"
+        dest: "{{ jitsi_deploy_path }}/lang/"
+        owner: root
+        group: root
+        remote_src: false
+    
+    # Deploy additional files
+    - name: Check PWA worker exists
+      stat:
+        path: "{{ jitsi_source_dir }}/pwa-worker.js"
+      register: pwa_worker_stat
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Deploy PWA worker
+      copy:
+        src: "{{ jitsi_source_dir }}/pwa-worker.js"
+        dest: "{{ jitsi_deploy_path }}/pwa-worker.js"
+        owner: root
+        group: root
+        mode: '0644'
+      when: pwa_worker_stat.stat.exists
+    
+    - name: Check manifest.json exists
+      stat:
+        path: "{{ jitsi_source_dir }}/manifest.json"
+      register: manifest_stat
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Deploy manifest.json
+      copy:
+        src: "{{ jitsi_source_dir }}/manifest.json"
+        dest: "{{ jitsi_deploy_path }}/manifest.json"
+        owner: root
+        group: root
+        mode: '0644'
+      when: manifest_stat.stat.exists
+    
+    - name: Check robots.txt exists
+      stat:
+        path: "{{ jitsi_source_dir }}/resources/robots.txt"
+      register: robots_stat
+      delegate_to: localhost
+      become: no
+      run_once: true
+    
+    - name: Deploy robots.txt
+      copy:
+        src: "{{ jitsi_source_dir }}/resources/robots.txt"
+        dest: "{{ jitsi_deploy_path }}/robots.txt"
+        owner: root
+        group: root
+        mode: '0644'
+      when: robots_stat.stat.exists
+    
+    # Reload nginx
+    - name: Reload nginx
+      systemd:
+        name: nginx
+        state: reloaded
+      when: nginx_reload
+    
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "Deployment completed successfully!"
+          - "Files deployed to: {{ jitsi_deploy_path }}"
+          - "Backup location: {{ backup_result.dest if backup_enabled else 'No backup created' }}"
+          - "Please clear browser cache or use incognito mode to see changes"
+

@@ -1,0 +1,24 @@
+[jitsi_servers]
+# Replace with your server details
+your-jitsi-server.example.com ansible_host=192.168.1.100 ansible_user=deploy
+
+# Or use IP directly
+# 192.168.1.100 ansible_user=deploy
+
+# Multiple servers
+# jitsi-server-1.example.com ansible_host=192.168.1.100
+# jitsi-server-2.example.com ansible_host=192.168.1.101
+
+[jitsi_servers:vars]
+# Optional: SSH key path
+# ansible_ssh_private_key_file=~/.ssh/id_rsa
+
+# Optional: Custom deployment path (default: /usr/share/jitsi-meet)
+# jitsi_deploy_path=/usr/share/jitsi-meet
+
+# Optional: Disable backup (default: true)
+# backup_enabled=false
+
+# Optional: Disable nginx reload (default: true)
+# nginx_reload=false
+
