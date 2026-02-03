@@ -101,6 +101,8 @@ const DeepLinkingMobilePage: React.FC<WithTranslation> = ({ t }) => {
     const deepLinkingUrl: string = useSelector(generateDeepLinkingURL);
     const room = useSelector((state: IReduxState) => decodeURIComponent(state['features/base/conference'].room || ''));
     const url = useSelector((state: IReduxState) => state['features/base/connection'] || {});
+    const userRegion = useSelector((state: IReduxState) =>
+        state['features/base/config']?.deploymentInfo?.userRegion) || (window as any).config?.deploymentInfo?.userRegion;
     const dispatch = useDispatch();
     const { classes: styles } = useStyles();
 
@@ -202,6 +204,11 @@ const DeepLinkingMobilePage: React.FC<WithTranslation> = ({ t }) => {
                 ) : (
                     <div className = { styles.labelDescription }>
                         {t(`${_TNS}.unsupportedBrowser`)}
+                    </div>
+                )}
+                {userRegion && (
+                    <div style = {{ marginTop: 8, fontSize: 11, color: '#888' }}>
+                        region: {userRegion}
                     </div>
                 )}
                 <div className = { styles.separator } />
