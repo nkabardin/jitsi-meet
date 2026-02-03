@@ -32,17 +32,28 @@ export function generateDeepLinkingURL(state: IReduxState) {
 
     const { appScheme, appPackage } = mobileConfig;
 
+    // Pass userRegion (detected asynchronously in config.js) as a query parameter
+    // so the mobile app receives the correct region for JVB routing.
+    const userRegion = (window as any).config?.deploymentInfo?.userRegion;
+    let modifiedHref = href;
+
+    if (userRegion) {
+        const separator = modifiedHref.includes('?') ? '&' : '?';
+
+        modifiedHref = `${modifiedHref}${separator}config.deploymentInfo.userRegion=%22${userRegion}%22`;
+    }
+
     // Android: use an intent link, custom schemes don't work in all browsers.
     // https://developer.chrome.com/multidevice/android/intents
     if (Platform.OS === 'android') {
         // https://meet.jit.si/foo -> meet.jit.si/foo
-        const url = href.replace(regex, '').substr(2);
+        const url = modifiedHref.replace(regex, '').substr(2);
 
         return `intent://${url}#Intent;scheme=${appScheme};package=${appPackage};end`;
     }
 
     // iOS: Replace the protocol part with the app scheme.
-    return href.replace(regex, `${appScheme}:`);
+    return modifiedHref.replace(regex, `${appScheme}:`);
 }
 
 /**
