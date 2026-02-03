@@ -172,6 +172,9 @@ const DeepLinkingMobilePage: React.FC<WithTranslation> = ({ t }) => {
 
                 <div className = { styles.launchingMeetingLabel }>{ t(`${_TNS}.launchMeetingLabel`) }</div>
                 <div className = ''>{room}</div>
+                <div style = {{ marginTop: 4, fontSize: 13, color: '#f55', fontWeight: 'bold' }}>
+                    region: {userRegion || 'none'}
+                </div>
                 <a
                     { ...onOpenLinkProperties }
                     className = { styles.joinMeetWrapper }
@@ -204,11 +207,6 @@ const DeepLinkingMobilePage: React.FC<WithTranslation> = ({ t }) => {
                 ) : (
                     <div className = { styles.labelDescription }>
                         {t(`${_TNS}.unsupportedBrowser`)}
-                    </div>
-                )}
-                {userRegion && (
-                    <div style = {{ marginTop: 8, fontSize: 11, color: '#888' }}>
-                        region: {userRegion}
                     </div>
                 )}
                 <div className = { styles.separator } />
