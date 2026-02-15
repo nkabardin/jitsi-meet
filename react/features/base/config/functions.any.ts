@@ -312,7 +312,15 @@ export function restoreConfig(baseURL: string) {
  */
 export function setConfigFromURLParams(
         config: IConfig, interfaceConfig: any, location: string | URL) {
-    const params = parseURLParams(location);
+    // Hash params are the canonical source for config overrides in web links.
+    // Also accept search params for mobile deep links (Android intent URLs),
+    // where passing hash overrides can be impractical.
+    const searchParams = parseURLParams(location, false, 'search');
+    const hashParams = parseURLParams(location);
+    const params = {
+        ...searchParams,
+        ...hashParams
+    };
     const json: any = {};
 
     // At this point we have:

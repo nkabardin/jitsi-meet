@@ -2,6 +2,7 @@ import { IReduxState } from '../app/types';
 import { isMobileBrowser } from '../base/environment/utils';
 import { browser } from '../base/lib-jitsi-meet';
 import Platform from '../base/react/Platform';
+import { addHashParamsToURL } from '../base/util/uri';
 import { URI_PROTOCOL_PATTERN } from '../base/util/uri';
 import { isVpaasMeeting } from '../jaas/functions';
 
@@ -32,15 +33,21 @@ export function generateDeepLinkingURL(state: IReduxState) {
 
     const { appScheme, appPackage } = mobileConfig;
 
-    // Pass userRegion (detected asynchronously in config.js) as a query parameter
-    // so the mobile app receives the correct region for JVB routing.
+    // Pass userRegion (detected asynchronously in config.js) to mobile app URL.
     const userRegion = (window as any).config?.deploymentInfo?.userRegion;
     let modifiedHref = href;
 
     if (userRegion) {
-        const separator = modifiedHref.includes('?') ? '&' : '?';
+        const url = new URL(modifiedHref);
 
-        modifiedHref = `${modifiedHref}${separator}config.deploymentInfo.userRegion=%22${userRegion}%22`;
+        if (Platform.OS === 'android') {
+            // Android deep links use intent://...#Intent. Keep backward-compatible query param.
+            url.searchParams.set('config.deploymentInfo.userRegion', JSON.stringify(userRegion));
+        } else {
+            // Config overrides are parsed from URL hash (#config....) in the app.
+            addHashParamsToURL(url, { 'config.deploymentInfo.userRegion': userRegion });
+        }
+        modifiedHref = url.toString();
     }
 
     // Android: use an intent link, custom schemes don't work in all browsers.
