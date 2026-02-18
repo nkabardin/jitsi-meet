@@ -268,8 +268,11 @@ export function getRecordButtonProps(state: IReduxState) {
         visible = recordingEnabled;
     }
 
-    // disable the button if the livestreaming is running.
-    if (visible && isLiveStreamingRunning(state)) {
+    const disableRecordingButtonWhileLiveStreaming
+        = recordingService?.disableRecordingButtonWhileLiveStreaming ?? true;
+
+    // Disable by default when livestreaming is running, but allow override in deployment config.
+    if (visible && disableRecordingButtonWhileLiveStreaming && isLiveStreamingRunning(state)) {
         disabled = true;
         tooltip = 'dialog.recordingDisabledBecauseOfActiveLiveStreamingTooltip';
     }

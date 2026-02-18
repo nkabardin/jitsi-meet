@@ -541,6 +541,7 @@ export interface IConfig {
         limit?: number;
     };
     recordingService?: {
+        disableRecordingButtonWhileLiveStreaming?: boolean;
         enabled?: boolean;
         hideStorageWarning?: boolean;
         sharingEnabled?: boolean;
