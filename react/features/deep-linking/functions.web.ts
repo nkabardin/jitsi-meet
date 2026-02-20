@@ -2,6 +2,7 @@ import { IReduxState } from '../app/types';
 import { isMobileBrowser } from '../base/environment/utils';
 import { browser } from '../base/lib-jitsi-meet';
 import Platform from '../base/react/Platform';
+import { parseURLParams } from '../base/util/parseURLParams';
 import { addHashParamsToURL } from '../base/util/uri';
 import { URI_PROTOCOL_PATTERN } from '../base/util/uri';
 import { isVpaasMeeting } from '../jaas/functions';
@@ -37,18 +38,32 @@ export function generateDeepLinkingURL(state: IReduxState) {
     const userRegion = (window as any).config?.deploymentInfo?.userRegion;
     let modifiedHref = href;
 
-    if (userRegion) {
-        const url = new URL(modifiedHref);
+    const url = new URL(modifiedHref);
 
+    if (Platform.OS === 'android') {
+        // Preserve identity prefill fields that may live in hash params.
+        // Android intent links don't reliably carry hash params through to the app.
+        const hashParams = parseURLParams(url);
+        [ 'userInfo.displayName', 'userInfo.email' ].forEach(param => {
+            if (hashParams[param] !== undefined && !url.searchParams.has(param)) {
+                url.searchParams.set(param, JSON.stringify(hashParams[param]));
+            }
+        });
+    }
+
+    if (userRegion) {
         if (Platform.OS === 'android') {
             // Android deep links use intent://...#Intent. Keep backward-compatible query param.
             url.searchParams.set('config.deploymentInfo.userRegion', JSON.stringify(userRegion));
+            url.searchParams.set('region', String(userRegion));
         } else {
             // Config overrides are parsed from URL hash (#config....) in the app.
             addHashParamsToURL(url, { 'config.deploymentInfo.userRegion': userRegion });
+            // Also pass plain query param as fallback for native URL parsing edge cases.
+            url.searchParams.set('region', String(userRegion));
         }
-        modifiedHref = url.toString();
     }
+    modifiedHref = url.toString();
 
     // Android: use an intent link, custom schemes don't work in all browsers.
     // https://developer.chrome.com/multidevice/android/intents
