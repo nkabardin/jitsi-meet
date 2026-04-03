@@ -137,11 +137,8 @@ export function _mapStateToProps(state: IReduxState, ownProps: IProps) {
         });
     }
 
-    // disable the button if the recording is running.
-    if (visible && (isCloudRecordingRunning(state) || isRecorderTranscriptionsRunning(state))) {
-        _disabled = true;
-        _tooltip = 'dialog.liveStreamingDisabledBecauseOfActiveRecordingTooltip';
-    }
+    // Allow streaming and recording to run simultaneously.
+    // The original code disabled the button if recording was running.
 
     // disable the button if we are in a breakout room.
     if (isInBreakoutRoom(state)) {
